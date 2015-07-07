@@ -1,0 +1,301 @@
+---- BizzyFarm Control Center ----
+term.clear()
+rednet.open("left")
+
+function Logo()
+print("The BizzyFarm Control Center!")
+print("-------------------------------------")
+end
+
+function Numbers()
+print("Crop Type = "..CropType)
+print("# of Rows = "..TotalRows)
+print("Row Length = "..TotalLength)
+print("Starting Distance = "..StartDistance)
+print("Timer = "..Timer)
+end
+
+function NumbersCheck()
+  Logo()
+  Numbers()
+  textutils.slowPrint("\nIf these numbers are correct please press Enter if not press BackSpace")
+  listen = true
+  while listen == true do
+    local sEvent, param = os.pullEvent("key")
+    if sEvent == "key" then
+      if param == 28 then --enter
+        term.clear()
+        Logo()
+        Numbers()
+        listen = false
+        SaveSettings()
+      end
+      if param == 14 then --backspace
+        NumbersEdit()
+        listen = false
+      end
+    end
+  end
+end
+
+function NumbersEdit()
+  term.clear()
+  Logo()
+  print("\nCrop Type = "..CropType.." - Press C to change")
+  print("\n# of Rows = "..TotalRows.." - Press R to change")
+  print("Row Length = "..TotalLength.." - Press L to change")
+  print("Starting Distance = "..StartDistance.." - Press D to change")
+  print("Timer = "..Timer.." - Press T to change")
+  print("Press Enter to Cancel")
+  listen = true
+  while listen == true do
+    local sEvent, param = os.pullEvent("key")
+    if sEvent == "key" then
+      if param == 46 then --C
+        term.clear()
+        Logo()
+        print("\nwhat would you like to change the Crop to?")
+        print("1: Wheat")
+        listencrop = true
+        while listencrop == true do
+          local sEvent, param = os.pullEvent("key")
+          if sEvent == "key" then
+            if param == 2 then --1
+              CropType = "Wheat"
+              listencrop = false
+            end
+          end
+        end
+        term.clear()
+        NumbersCheck()
+        listen = false
+      end
+      if param == 19 then --R
+        term.clear()
+        Logo()
+        print("\nwhat would you like to change the Rows to?")
+        TotalRows = io.read()
+        TotalRows = tonumber(TotalRows)
+        term.clear()
+        NumbersCheck()
+        listen = false
+      end
+      if param == 38 then --L
+        term.clear()
+        Logo()
+        print("\nwhat would you like to change the Length to?")
+        TotalLength = io.read()
+        TotalLength = tonumber(TotalLength)
+        term.clear()
+        NumbersCheck()
+        listen = false
+      end
+      if param == 32 then --D
+        term.clear()
+        Logo()
+        print("\nwhat would you like to change the Starting Distance to?")
+        StartDistance = io.read()
+        StartDistance = tonumber(StartDistance)
+        term.clear()
+        NumbersCheck()
+        listen = false
+      end
+      if param == 20 then --T
+        term.clear()
+        Logo()
+        print("\nwhat would you like to change the Timer to?")
+        Timer = io.read()
+        Timer = tonumber(Timer)
+        term.clear()
+        NumbersCheck()
+        listen = false
+      end
+      if param == 28 then --enter
+        term.clear()
+        NumbersCheck() 
+        listen = false
+      end      
+    end
+  end
+end
+
+function SaveSettings()
+  local file = fs.open("BizzyFarm/Settings", "w")
+  file.write(textutils.serialize(Settings))
+  file.close()
+end
+ 
+function LoadSettings()
+  local file = fs.open("BizzyFarm/Settings","r")
+  local Settings = file.readAll()
+  file.close()
+  Settings = textutils.unserialize(Settings)
+  Crop = Settings.croptype
+  TotalRows = Settings.rows
+  TotalLength = Settings.length
+  DockDistance = Settings.sdistance
+  PlanterID = Settings.planterid
+  CPID = os.getComputerID()
+end
+
+function SendSettings()
+  CPID = os.getComputerID()
+  Settings = {crop = CropType, rows = TotalRows, length = TotalLength, sdistance = StartDistance, planterid = PlanterID, harvesterid = HarvesterID, cpid = CPID}
+  local msg = textutils.serialize(Settings)
+  rednet.send(HarvesterID, "Ready!")
+  rednet.send(HarvesterID, msg)
+  print("\nSent Settings to Harvester")
+  sleep(1)
+end
+
+function FirstRun()
+  term.clear()
+  print("Hello and Welcome to")
+  Logo()
+  textutils.slowPrint("\nLets Program your very first farm!")
+  sleep(2)
+  textutils.slowPrint("\nFirst off, make sure you have started the harvester and planter programs on their turtles")
+  textutils.slowPrint("\nPress enter if both programs are started")
+
+  listen = true
+  while listen == true do
+    local sEvent, param = os.pullEvent("key")
+    if sEvent == "key" then
+      if param == 28 then --enter
+        print("ENTER Pressed")
+        sleep(1)
+        listen = false
+      end
+    end
+  end
+
+  term.clear()
+  print("Getting and Sending IDs")
+  sleep(.5)
+  print("Contacting Harvester")
+  rednet.broadcast("BizzyCPIDH")
+
+  getids = true
+  while getids == true do
+    local senderId, message = rednet.receive()
+    if message == "BizzyHarvest" then
+      HarvesterID = senderId
+      sleep(.5)
+      print("Retrieved Harvester ID")
+      sleep(.5)
+      getids = false
+    end
+  end
+
+  print("Contacting Planter")
+  rednet.broadcast("BizzyCPIDP", HarvesterID)
+
+  getids = true
+  while getids == true do
+    local senderId, message = rednet.receive()
+    if message == "BizzyPlant" then
+      PlanterID = senderId
+      sleep(.5)
+      print("Retrieved Planter ID and sent Harvester ID")
+      sleep(.5)
+      getids = false
+    end
+  end
+
+  print("Done!")
+  sleep(1)
+
+  term.clear()
+  Logo()
+
+  textutils.slowPrint("\nWhat crop will BizzyFarm be harvesting?")
+  print("\n1: Wheat")
+  listencrop = true
+  while listencrop == true do
+  local sEvent, param = os.pullEvent("key")
+    if sEvent == "key" then
+      if param == 2 then --1
+        CropType = "Wheat"
+        listencrop = false
+      end
+    end
+  end
+
+  textutils.slowPrint("\nHow many rows will your farm have?")
+  TotalRows = io.read()
+  TotalRows = tonumber(TotalRows)
+
+  textutils.slowPrint("\nHow long will each row be")
+  TotalLength = io.read()
+  TotalLength = tonumber(TotalLength)
+
+  textutils.slowPrint("\nHow many blocks are between your turtles and the first crop?")
+  StartDistance = io.read()
+  StartDistance = tonumber(StartDistance)
+
+  textutils.slowPrint("\nHow long will the turtles wait between harvests?")
+  Timer = io.read()
+  Timer = tonumber(Timer)
+
+  term.clear()
+  NumbersCheck()
+
+  SendSettings()
+
+  print("\nStarting Harvester for the First Time")
+  rednet.send(HarvesterID, "Start!")
+end
+
+if not fs.exists "BizzyFarm/Settings" then
+  FirstRun()
+else
+  LoadSettings()
+  rednet.send(HarvesterID, "Start!")
+  term.clear()
+  Logo()
+  Numbers()
+  print("\nHarvester Running, Please Wait")
+end
+
+while true do
+  harvesterwait = true
+  starttimer = false
+  while true do
+    while harvesterwait == true do
+      local senderId, message = rednet.receive()
+      if senderId == HarvesterID then
+        if message == "Harvester Done!" then
+          startedtimer = os.startTimer(Timer)
+          term.clear()
+          Logo()
+          Numbers()
+          print("\nWaiting for "..Timer.." Seconds until next harvest")
+          print("Press Backspace to change settings")
+          harvesterwait = false
+          starttimer = true
+        end
+      end
+    end
+    while starttimer == true do
+      local event = {os.pullEvent()}
+      if event[1] == "key" then
+        if event[2] == 14 then
+          NumbersEdit()
+          rednet.send(HarvesterID, "Settings!")
+          SendSettings()
+          startedtimer = os.startTimer(Timer)
+        end
+      elseif event[1] == "timer" then
+        if event[2] == startedtimer then
+          rednet.send(HarvesterID, "Start!")
+          term.clear()
+          Logo()
+          Numbers()
+          print("\nHarvester Running, Please Wait")
+          harvesterwait = true
+          starttimer = false
+        end
+      end
+    end
+  end
+end
