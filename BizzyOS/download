@@ -3,7 +3,6 @@ function downloadFile(url, path, name, m)
         if m == "r" then 
           if fs.exists(path .. "/" .. name) then
             shell.run("delete "..path.."/"..name)
-            sleep(20)
             local content = http.get(url)
             local file = fs.open(path .. "/" .. name,"w")
             file.write(content.readAll())
