@@ -114,7 +114,7 @@ end
 function InstallOS()
     if fs.exists("startup") then shell.run("delete startup") end
     local content = http.get(installerstartup)
-    local file = fs.open("startup","w")
+    local file = fs.open("startup", "w")
     file.write(content.readAll())
     file.close()
 end
