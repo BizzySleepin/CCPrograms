@@ -11,8 +11,8 @@ iconFontColor = 32768
 desktopBackColor = 1
 contextX = 0
 contextY = 0
-BizzyInstall = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
-Programs = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
+OSInstallIcon = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
+ProgramsIcon = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
 
 
 --Functions
@@ -37,17 +37,17 @@ function drawDesktop()
 end
 
 function drawIcons()
-  paintutils.drawImage(BizzyInstall, 12, 7)
-  paintutils.drawImage(Programs, 30, 7)
+  paintutils.drawImage(OSInstallIcon, 12, 5)
+  paintutils.drawImage(ProgramsIcon, 30, 5)
   term.setBackgroundColor(desktopBackColor)
   term.setTextColor(iconFontColor)
-  term.setCursorPos(16,15)
+  term.setCursorPos(14,14)
   print("Install")
-  term.setCursorPos(14,16)
+  term.setCursorPos(12,15)
   print("Control Panel")
-  term.setCursorPos(32,15)
+  term.setCursorPos(32,14)
   print("Install")
-  term.setCursorPos(32,16)
+  term.setCursorPos(29,15)
   print("Other Programs")
 end
 
@@ -79,10 +79,10 @@ local event, button, X, Y = os.pullEventRaw()
       if X >= 1 and X <= 8 and Y == 1 and button == 1 then
         drawMenu1()
         slc = 1
-      elseif X >= 12 and X <= 24 and Y >= 7 and Y <= 15 and button == 1 then
+      elseif X >= 12 and X <= 23 and Y >= 5 and Y <= 12 and button == 1 then
         main = false
         InstallOS()
-      elseif X >= 30 and X <= 42 and Y >= 7 and Y <= 15 and button == 1 then
+      elseif X >= 30 and X <= 41 and Y >= 5 and Y <= 12 and button == 1 then
         main = false
         Programs()
       else
@@ -91,13 +91,13 @@ local event, button, X, Y = os.pullEventRaw()
     elseif slc == 1 then
       if X >= 1 and X <= 15 and Y == 3 and button == 1 then
           slc = 0 
-          shell.run("edit Bizzy/Installer")
+          shell.run("edit BizzyOS/Setup")
       elseif X >= 1 and X <= 15 and Y == 4 and button == 1 then
           slc = 0
-          shell.run("Bizzy/FileManager")
+          shell.run("BizzyOS/Programs/FileManager")
       elseif X >= 1 and X <= 15 and Y == 5 and button == 1 then
           slc = 0
-          shell.run("Bizzy/Installer")
+          shell.run("BizzyOS/Setup")
       elseif X >= 1 and X <= 15 and Y == 6 and button == 1 then
           slc = 0
           os.shutdown()
@@ -110,7 +110,13 @@ local event, button, X, Y = os.pullEventRaw()
 end
 end
 
-function monitorAdd()
+function InstallOS()
+  term.setBackgroundColor(desktopBackColor)
+  term.clear()
+  titleBar()
+end
+
+function Programs()
   term.setBackgroundColor(desktopBackColor)
   term.clear()
   titleBar()
