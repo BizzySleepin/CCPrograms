@@ -79,12 +79,12 @@ local event, button, X, Y = os.pullEventRaw()
       if X >= 1 and X <= 8 and Y == 1 and button == 1 then
         drawMenu1()
         slc = 1
-      elseif X >= 12 and X <= 22 and Y >= 7 and Y <= 13 and button == 1 then
+      elseif X >= 12 and X <= 24 and Y >= 7 and Y <= 15 and button == 1 then
         main = false
-        monitorAdd()
-      elseif X >= 30 and X <= 40 and Y >= 7 and Y <= 13 and button == 1 then
+        InstallOS()
+      elseif X >= 30 and X <= 42 and Y >= 7 and Y <= 15 and button == 1 then
         main = false
-        monitorRemove()
+        Programs()
       else
         drawDesktop()
       end
