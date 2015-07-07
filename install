@@ -25,8 +25,9 @@ function downloadFile(url, path, name, m)
         end 
 end
 
-downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Setup", "BizzyOS", "Setup",)
-downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/API/bizzy", "BizzyOS/API", "Bizzy",)
-downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Images/FarmIcon", "BizzyOS/Images", "FarmIcon",)
+downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Setup", "BizzyOS", "Setup", "r")
+downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Images/Setup/BizzyInstall", "BizzyOS/Images/Setup", "BizzyInstall", "r")
+downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Images/Setup/Programs", "BizzyOS/Images/Setup", "Programs", "r")
+downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/API/bizzy", "BizzyOS/API", "Bizzy", "r")
 
 shell.run("BizzyOS/Setup")

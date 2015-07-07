@@ -1,21 +1,6 @@
 --[[Terminal Desktop]]
 
-if not fs.exists("Bizzy") then
-  fs.makeDir("Bizzy")
-end
-if not fs.exists("Bizzy/Installer") then
-  shell.run("pastebin get Wmi0spqL Bizzy/Installer")
-end
-if fs.exists("installer") then
-  shell.run("delete installer")
-end
-if fs.exists("startup") then
-  shell.run("delete startup")
-end
-if not fs.exists("Bizzy/FileManager") then
-  shell.run("pastebin get mG3tuSMJ Bizzy/FileManager")
-end
-
+os.loadAPI("BizzyOS/API/Bizzy")
 
 --Variables
 
@@ -51,9 +36,9 @@ function drawDesktop()
 end
 
 function drawIcons()
-  icon = paintutils.loadImage("monitor")
+  icon = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
   paintutils.drawImage(icon, 12, 7)
-  icon2 = paintutils.loadImage("remmonitor")
+  icon2 = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
   paintutils.drawImage(icon2, 30, 7)
   term.setBackgroundColor(desktopBackColor)
   term.setTextColor(iconFontColor)
