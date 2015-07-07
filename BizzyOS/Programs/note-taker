@@ -1,0 +1,772 @@
+tArgs = { ... }
+
+--[[
+    Note Taker      PaymentOption
+                    23 December 2012
+                    
+    Simple text editor using colors and
+    line numbers and a custom cursor.
+]]--
+
+-- This program can only be used on an advanced computer, so make sure
+-- that the computer we're working on supports color.
+if not term.isColor() then
+    print("Color must be supported.")
+    return
+end
+
+-- Make sure that we have the proper arguments to continue.
+if #tArgs < 1 then
+    print("Usage: " .. fs.getName(shell.getRunningProgram()) .. " <file_path>")
+    return
+elseif fs.isDir(tArgs[1]) then
+    print("Cannot edit a directory.")
+    return
+elseif fs.isReadOnly(tArgs[1]) then
+    print("Cannot edit a read only file.")
+    return
+end
+
+-- Variables --
+local running = true -- Whether or not the program should be running.
+
+local SHOULD_HIGHLIGHT_SYNTAX = true -- Whether or not the program should highlight syntax.
+local TAB_SIZE = 3 -- The number of spaces inserted into the current line when the tab key is pressed.
+
+local BACKGROUND_COLOR   = colors.blue
+local CURRENT_LINE_COLOR = colors.cyan
+local TEXT_COLOR         = colors.white
+
+local LINE_NUMBER_COLOR            = colors.white
+local LINE_NUMBER_BACKGROUND_COLOR = colors.gray
+
+local CURSOR_BLINK_TIME = 0.3
+local CURSOR_COLOR      = colors.lightGray
+local shouldCursorBlink = false
+local cursorBlinkTimer  = os.startTimer(CURSOR_BLINK_TIME)
+
+local path  = tArgs[1] -- The path for the program to load files from or to create a new file at.
+local lines = {} -- All of the lines that are contained within the  current file.
+local hasBeenSavedSinceLastChar = true -- Whether or not the file has been saved since the last character modification was made.
+
+local xPosOffset = 3
+local yPosOffset = 3
+
+local WIDTH, HEIGHT = term.getSize() -- The width and height dimensions of the terminal we're working on.
+local scroll = {x = 0, y = 0} -- The amount of characters/lines that are to be scrolled when editing.
+local pos    = {x = 3, y = 3} -- The position of the cursor in the file. Scrolling will be handled in another function.
+
+local COLORS = {
+    COMMENT_COLOR = colors.lime,
+    STRING_COLOR  = colors.lightGray,
+    KEYWORD_COLOR = colors.yellow
+}
+
+local keywords = { -- All keywords that are to be highlighted when drawing the screen. Also, the colors for each keyword are stored by their
+                   -- string index.
+    ["local"]    = true,
+    ["function"] = true,
+    ["if"]       = true,
+    ["then"]     = true,
+    ["elseif"]   = true,
+    ["else"]     = true,
+    ["end"]      = true,
+    ["repeat"]   = true,
+    ["until"]    = true,
+    ["for"]      = true,
+    ["in"]       = true,
+    ["ipairs"]   = true,
+    ["pairs"]    = true,
+    ["and"]      = true,
+    ["or"]       = true,
+    ["not"]      = true,
+    ["do"]       = true,
+    ["true"]     = true,
+    ["false"]    = true,
+    ["while"]    = true
+
+}
+-- Variables --
+
+-- File functions --
+-- Reads all of the lines in the file at 'path' into a table and returns aforementioned table.
+-- In the case that the path provided doesn't exist, then a table with a single empty string will
+-- be returned so that we can create an empty file for the user to save.
+function loadLinesFromFile(path)
+    -- If the file doesn't exist, then setup the lines table as a single empty line.
+    -- The file will be created when the programs saves.
+    if not fs.exists(path) then
+        return {""}
+    end
+    
+    -- In the case that the file exists, then load its contents into the lines table.
+    local fileHandle = io.open(path, 'r')
+    local line       = fileHandle:read()
+    local lines      = {}
+    
+    -- Read a line from the file so long as the line read
+    -- isn't nil. (When the line is nil it means that we have reached the end of the file.)
+    while line do
+        table.insert(lines, line)
+        line = fileHandle:read()
+    end
+    fileHandle:close()
+    
+    -- Setup the proper xPosOffset for the number of lines loaded.
+    if #lines >= 10 then
+        -- Find out which power of ten the number of lines is divisible by.
+        local power    = 1
+        local quotient = #lines / (math.pow(10, power))
+       
+        -- Divide the number of lines in the file by a power of ten until
+        -- the resulting decimal is less than 1.
+        -- Once it is less than 1, then we have the greatest power of ten that can
+        -- fit into the number of lines, allowing us to calculate the offset of the cursor.
+        while quotient >= 1 do
+            if #lines / (10^power) >= 1 then
+                quotient = #lines / (10^power)
+                power = power + 1
+            else
+                break
+            end
+        end
+       
+        -- Update the cursor offset and the cursor position.
+        xPosOffset = power + 2
+        pos.x      = xPosOffset
+    end
+    
+    return lines
+end
+
+-- Saves all of the lines in the lines table to the file at 'path'.
+-- If the directory that is specified by 'path' doesn't exist, then
+-- it will be created so that the file can be saved properly.
+function saveLinesToFile(path)
+    -- Make sure that the path to the file excluding the name exists.
+    -- In the case that it doesn't, then we'll make the directory to
+    -- put the file in.
+    local pathWithoutName = path:sub(1, path:len() - fs.getName(path):len())
+    if not fs.isDir(pathWithoutName) then
+        fs.makeDir(pathWithoutName)
+    end
+    
+    -- Save the lines in the lines table to the path provided by looping
+    -- through the lines table and writing each entry using fs.writeLine().
+    local fileHandle = fs.open(path, 'w')
+    for lineNumber, line in ipairs(lines) do
+        fileHandle.writeLine(line)
+    end
+    fileHandle.close()
+end
+-- File functions --
+
+-- Drawing functions --
+-- Writes the given text using the x position offset as the cut off for strings appearing on screen.
+-- This should be used only for drawing the lines in the file and not for the drawing of the interface.
+function writeLimited(text)
+    local xPos, yPos = term.getCursorPos()
+    local old_xPos   = xPos
+    local old_text   = text
+    
+    if xPos < xPosOffset then
+        text = text:sub((xPosOffset - xPos) + 1)
+        xPos = xPosOffset
+    end
+    
+    term.setCursorPos(xPos, yPos)
+    term.write(text)
+    
+    term.setCursorPos(old_xPos + old_text:len(), yPos)
+end
+
+-- Code shamelessly stolen from dan200's edit program. ************
+local function tryWrite( sLine, regex, colour )
+	local match = string.match( sLine, regex )
+	if match then
+		if type(colour) == "number" then
+			term.setTextColour( colour )
+		else
+			term.setTextColour( colour(match) )
+		end
+		writeLimited( match )
+		term.setTextColour( TEXT_COLOR )
+		return string.sub( sLine, string.len(match) + 1 )
+	end
+	return nil
+end
+
+local function writeHighlighted( sLine )
+	while string.len(sLine) > 0 do	
+		sLine = 
+			tryWrite( sLine, "^%-%-%[%[.-%]%]", COLORS.COMMENT_COLOR ) or
+			tryWrite( sLine, "^%-%-.*", COLORS.COMMENT_COLOR ) or
+			tryWrite( sLine, "^\".-[^\\]\"", COLORS.STRING_COLOR ) or
+			tryWrite( sLine, "^\'.-[^\\]\'", COLORS.STRING_COLOR ) or
+			tryWrite( sLine, "^%[%[.-%]%]", COLORS.STRING_COLOR ) or
+			tryWrite( sLine, "^[%w_]+", function( match )
+				if keywords[ match ] then
+					return COLORS.KEYWORD_COLOR
+				end
+				return TEXT_COLOR
+			end ) or
+			tryWrite( sLine, "^[^%w_]", TEXT_COLOR )
+	end
+end
+-- End shameless code stealing. All credit goes to dan200. *******
+
+-- Draws the title bar for the program which includes the name of the program and whether or not it has
+-- been saved since it was edited last.
+function drawTitleBar()
+    -- Get the file path to display that we are editing that file. If the file path is too long,
+    -- then truncate it.
+    local truncatedFilePath = ((path:len() > (WIDTH - 14)) and path:sub(1, (WIDTH - 14)) .. "..." or path) .. (hasBeenSavedSinceLastChar and '' or '*')
+    -- Redraw the title bar at the top of the screen.
+    term.setCursorPos(1, 1)
+    term.setBackgroundColor(colors.lightBlue)
+    term.setTextColor(colors.white)
+    term.clearLine()
+    term.setCursorPos(2, 1)
+    term.write("Note-Taker - " .. truncatedFilePath)
+    term.setCursorPos(WIDTH - 3, 1)
+    term.write("_[]")
+    term.setBackgroundColor(colors.red)
+    term.write('X')
+end
+
+-- Draws the line numbers in the file.
+-- Accounts for scrolling too.
+-- NOTE: This clears the entire line. The line must be redrawn
+--       after the line number has been drawn.
+function drawLineNumbers()
+    drawTitleBar()
+    
+    -- Redraw the menu option.
+    term.setCursorPos(1, 2)
+    term.setBackgroundColor(colors.lightGray)
+    term.clearLine()
+    term.setBackgroundColor(colors.gray)
+    term.setCursorPos(WIDTH - ("[ File ]"):len(), 2)
+    term.write("[ File ]")
+    
+    for lineNumber = yPosOffset + scroll.y, HEIGHT + scroll.y do
+        term.setCursorPos(1, lineNumber - scroll.y)
+        
+        if lineNumber == pos.y then
+            term.setBackgroundColor(CURRENT_LINE_COLOR)
+        else
+            term.setBackgroundColor(BACKGROUND_COLOR)
+        end
+        
+        term.setTextColor(TEXT_COLOR)
+        term.clearLine()
+        if lineNumber - yPosOffset + 1 <= #lines then
+            term.setBackgroundColor(LINE_NUMBER_BACKGROUND_COLOR)
+            term.setTextColor(LINE_NUMBER_COLOR)
+            
+            term.write(tostring(lineNumber - yPosOffset + 1) .. (string.rep(' ', tostring(#lines):len() - tostring(lineNumber - yPosOffset + 1):len())))
+        else
+            term.setBackgroundColor(LINE_NUMBER_BACKGROUND_COLOR)
+            term.setTextColor(LINE_NUMBER_COLOR)
+            term.write(string.rep(' ', xPosOffset - 2))
+        end
+        
+        -- Reset the colors for the editor so that only the part
+        -- where the line number is drawn has color.
+        term.setBackgroundColor(BACKGROUND_COLOR)
+        term.setTextColor(TEXT_COLOR)
+    end
+end
+
+-- Draws the current line number.
+function drawCurrentLineNumber()
+    local lineNumber = pos.y
+    term.setCursorPos(1, lineNumber - scroll.y)
+    
+    term.setBackgroundColor(CURRENT_LINE_COLOR)
+    term.clearLine()
+    
+    term.setCursorPos(1, lineNumber - scroll.y)
+    term.setBackgroundColor(LINE_NUMBER_BACKGROUND_COLOR)
+    term.setTextColor(LINE_NUMBER_COLOR)
+    term.write(tostring(lineNumber - yPosOffset + 1) .. (string.rep(' ', tostring(#lines):len() - tostring(lineNumber - yPosOffset + 1):len())))
+end
+
+-- Draws the current line.
+function drawCurrentLine()
+    drawTitleBar()
+    drawCurrentLineNumber()
+    local lineNumber = pos.y + scroll.y
+    local line       = lines[(pos.y - yPosOffset + 1)]
+    term.setBackgroundColor(CURRENT_LINE_COLOR)
+    term.setTextColor(TEXT_COLOR)
+    
+    term.setCursorPos(xPosOffset - scroll.x, pos.y - scroll.y)
+    
+    if SHOULD_HIGHLIGHT_SYNTAX then
+        writeHighlighted(line)
+    else
+        writeLimited(line)
+    end
+    
+    term.setBackgroundColor(BACKGROUND_COLOR)
+end
+
+-- Draws all of the lines in the file that can fit on the screen
+-- depending on how the screen is scrolled. Sets the cursor position
+-- in the proper place after redrawing.
+function drawLines()
+    -- Redraw the line numbers.
+    drawLineNumbers()
+    -- NOTE: The above function call will have cleared all of the lines on screen.
+    
+    for lineNumber = yPosOffset + scroll.y, HEIGHT + scroll.y do
+        -- Offset the line to threee characters over the compensate
+        -- for the line numbers.
+        term.setCursorPos(xPosOffset - scroll.x, lineNumber - scroll.y)
+        
+        -- Get the line at the supposed line number. If the line we selected doesn't exist,
+        -- then don't draw it.
+        local line = lines[lineNumber - (yPosOffset - 1)]
+        if line then
+            -- Scroll the line drawn by getting a substring of it from the first
+            -- character plus how many characters are to be scrolled until how many
+            -- characters will fit on the screen plus how much is to be scrolled.
+            if lineNumber == pos.y then
+                term.setBackgroundColor(CURRENT_LINE_COLOR)
+            end
+            
+            if SHOULD_HIGHLIGHT_SYNTAX then
+                writeHighlighted(line)
+            else
+                writeLimited(line)
+            end
+    
+            term.setBackgroundColor(BACKGROUND_COLOR)
+        end
+    end
+    
+    -- Reset the cursor position to the proper place so that the user may write.
+    term.setCursorPos(pos.x - scroll.x, pos.y - scroll.y)
+end
+
+-- Draws the cursor using the constant 'CURSOR_COLOR'.
+function drawAndSetCursor(x, y)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(CURSOR_COLOR)
+    if shouldCursorBlink then
+        local charAtCursor = lines[pos.y - (yPosOffset - 1)]:sub(pos.x - (xPosOffset - 1), pos.x - (xPosOffset - 1))
+        if charAtCursor == "" then
+            charAtCursor = ' '
+        end
+        
+        term.write(charAtCursor)
+    end
+    term.setBackgroundColor(BACKGROUND_COLOR)
+    
+    term.setCursorPos(45, 1)
+end
+-- Drawing functions --
+
+-- Menu functions --
+-- Draws the main menu that contains the save, exit, and color config menu.
+function drawMainMenu()
+    local options = { -- The options in the main menu.
+        "  Save  ",
+        "  Exit  "
+    }
+    
+    -- Since the length of all of the options as strings are all the same, calculate the x position
+    -- where each option should be drawn in order for them to all be in the center of the screen.
+    local width = (#options[1] + #options[2]) * 2
+    local xPos  = WIDTH/2 - width/2
+    local yPos  = HEIGHT/2 - 3
+    local index = 1
+    
+    -- Draws the menu in the center of the screen.
+    local function draw()
+        term.setBackgroundColor(colors.lightBlue)
+        term.setCursorPos(xPos, yPos)
+        term.write(string.rep(' ', width))
+        
+        term.setTextColor(colors.white)
+        term.setCursorPos(WIDTH/2 - ("Menu"):len()/2, yPos)
+        term.write("Menu")
+        term.setCursorPos(xPos + width - 4, yPos)
+        term.write('_[]')
+        term.setBackgroundColor(colors.red)
+        term.write('X')
+        
+        term.setBackgroundColor(colors.lightGray)
+        for line = yPos + 1, yPos + #options + 1 do
+            term.setCursorPos(xPos, line)
+            term.write(string.rep(' ', width))
+        end
+        term.setBackgroundColor(colors.gray)
+        
+        term.setCursorPos(xPos + 3, yPos + #options)
+        term.write("[ " .. options[1] .. " ]")
+        
+        term.setBackgroundColor(colors.lightGray)
+        term.write("  ")
+        term.setBackgroundColor(colors.gray)
+        term.write("[ " .. options[2] .. " ]")
+    end
+    
+    -- Handles clicks an other interaction with the menu.
+    -- After any click, the function will return.
+    local function handleClicks(xPos, yPos)
+        while true do
+            local event, p1, p2, p3 = os.pullEvent()
+            
+            -- Handle clicks.
+            if event == "mouse_click" then
+                -- If the click was on the save option, then save the current file.
+                if wasClickOnRange(p2, p3, xPos + 3, math.floor(yPos + #options), ("[ " .. options[1] .. " ]"):len()) then
+                    saveLinesToFile(path)
+                    hasBeenSavedSinceLastChar = true
+                    return
+                -- If the click was on the exit option, then exit the program.
+                elseif wasClickOnRange(p2, p3, xPos + 3 + ("[ " .. options[1] .. " ]"):len(), math.floor(yPos + #options), ("[ " .. options[2] .. " ]"):len()) then
+                    running = false
+                    return
+                -- If the click was on the red 'X' at the top of the menu dialog, then close the dialog box and return to the editor.
+                -- Close the dialog box if the user pressed either of the control keys.
+                elseif wasClickOnRange(p2, p3, xPos + width - 2, math.floor(yPos), 1) then
+                    return
+                end
+            -- Handle key presses.
+            elseif event == "key" then
+                -- If the key pressed was one of the control keys, then exit the dialog box.
+                if p1 == 29 or p1 == 157 then
+                    return
+                -- If the key pressed was 's' then save the file and close the dialog box.
+                elseif p1 == keys['s'] then
+                    -- Catch 's' character event thrown.
+                    os.pullEvent()
+                    saveLinesToFile(path)
+                    hasBeenSavedSinceLastChar = true
+                    return
+                -- If the key pressed was 'e' then exit the program.
+                elseif p1 == keys['e'] then
+                    -- Catch 'e' character event thrown.
+                    os.pullEvent()
+                    
+                    -- Cleanup.
+                    running = false
+                    return
+                end
+            end
+        end
+    end
+    
+    draw()
+    handleClicks(xPos, yPos)
+end
+-- Menu functions --
+
+-- Click functions --
+-- Checks whether or not the given click was on the given range.
+function wasClickOnRange(xClickPos, yClickPos, xPos, yPos, width)
+    return xClickPos >= xPos and xClickPos <= xPos + width and yClickPos == yPos
+end
+-- Click functions --
+
+-- Positioning functions --
+-- Sets the cursor at the stored position and modifies the scroll values accordingly
+-- so everything will be drawn and positioned correctly.
+function updateCursorPos()
+    local xPos = pos.x - scroll.x -- This is to be the position that the cursor will be placed at on the x-axis for scrolling to be proper.
+    local yPos = pos.y - scroll.y -- This is to be the position that the cursor will be placed at on the y-axis for scrolling to be proper.
+    
+    local shouldRedrawLines = false
+    -- In the case that the cursor goes before 3, then we need to scroll the cursor back one so that we don't
+    -- overwrite the line number and or go off the screen.
+    if xPos < xPosOffset then
+        xPos = xPosOffset
+        scroll.x = pos.x - xPosOffset
+        
+        shouldRedrawLines = true
+    -- If the cursor attempts to go beyond the screen limit, then scroll the cursor over by 1.
+    elseif xPos > WIDTH then
+        xPos = WIDTH
+        scroll.x = pos.x - WIDTH
+        
+        shouldRedrawLines = true
+    end
+    
+    -- In the case that the cursor attempts to go above the screen limit, then scroll the screen up by 1.
+    if yPos < yPosOffset then
+        yPos = yPosOffset
+        scroll.y = scroll.y - 1
+        
+        shouldRedrawLines = true
+    -- If the cursor attempts to go below the screen limit, then scroll the screen down by 1.
+    elseif yPos > HEIGHT then
+        yPos = HEIGHT
+        scroll.y = scroll.y + 1
+        
+        shouldRedrawLines = true
+    end
+    
+    if shouldRedrawLines then
+        drawLines()
+    end
+    
+    -- Redraw the text and lines in the file; repsotion the cursor to its proper point.
+    drawAndSetCursor(xPos, yPos)
+end
+-- Positioning functions --
+
+-- Input handling functions --
+-- Waits for an event to be thrown, then handles that event accordingly by adding text to the file,
+-- moving the cursor, and other various things.
+function handleInput()
+    -- Resets the cursor and its blink timer so that the user may see during this update.
+    local function resetCursor()
+        -- Make sure that the user can see the timer by
+        -- setting the blink flag to true and resetting the cursor blink timer.
+        shouldCursorBlink = true
+        cursorBlinkTimer = os.startTimer(CURSOR_BLINK_TIME)
+    end
+    
+    -- Grab an event and its parameters to be handled later.
+    local event, p1, p2, p3 = os.pullEvent()
+    local xPos = pos.x - (xPosOffset - 1)
+    local yPos = pos.y - (yPosOffset - 1)
+    local line = lines[yPos]
+    
+    -- In the case that the event thrown was a character event, add the chracter to the current line.
+    if event == "char" then
+        -- Set the line to a substring of itself from the cursor xPos minus one plus the character typed plus the rest of the line from the
+        -- position of the cursor onward.
+        lines[yPos] = line:sub(1, xPos - 1) .. p1 .. line:sub(xPos)
+        
+        -- Update the cursor by moving it one over to the right.
+        pos.x = pos.x + 1
+        
+        -- Since the event thrown was not the cursor blink timer, make sure that the user can see the timer by
+        -- setting the blink flag to true and resetting the cursor blink timer.
+        resetCursor()
+        
+        -- A change has been made to the state of the lines in the file, so set the proper flag to alert the user
+        -- that it needs to be saved to keep the changes made.
+        hasBeenSavedSinceLastChar = false
+        drawCurrentLine()
+    -- If the event was a key, then handle that key press appropriately.
+    elseif event == "key" then
+        -- If the key pressed was a backspace, then remove the character before the cursor in the current line.
+        if p1 == keys["backspace"] then
+            -- Make sure the length of the line is greater than 0 before trying to remove a character.
+            if pos.x > xPosOffset then
+                lines[yPos] = line:sub(1, xPos - 2) .. line:sub(xPos)
+                -- Update the cursor position by moving it one backwards.
+                pos.x = pos.x - 1
+                drawCurrentLine()
+            -- If the cursor is at the beginning of the line, then back up the cursor to the previous line (if possible) carrying the
+            -- current line with it.
+            elseif yPos > 1 then
+                -- If the number of lines in the file increases by an exponent of 10, then move the offset of the x pos for the cursor up by 1.
+                if #lines == math.pow(10, xPosOffset - 3) then
+                    xPosOffset = xPosOffset - 1
+                    pos.x      = pos.x - 1
+                end
+                
+                local previousLine = lines[yPos - 1]
+                lines[yPos - 1]   = previousLine .. line
+                
+                -- Remove the current line entry and move the cursor to the previous line.
+                table.remove(lines, yPos)
+                
+                pos.x = previousLine:len() + xPosOffset -- lines[pos.y - 1]:len() + xPosOffset
+                pos.y = pos.y - 1
+                drawLines()
+            end
+            
+            -- A change has been made to the state of the lines in the file, so set the proper flag to alert the user
+            -- that it needs to be saved to keep the changes made.
+            hasBeenSavedSinceLastChar = false
+        -- If the key pressed was the enter key, then create a new line.
+        elseif p1 == keys["return"] then
+            -- Get a substring of the line from the cursor onward on the current line, a substring of the
+            -- current line from the cursor backwards.
+            local lineFromCursor   = line:sub(xPos)
+            local lineBeforeCursor = line:sub(1, xPos - 1)
+            -- Compute the number of spaces before any text on the screen to determine the current line's indentation.
+            local _, numSpaces = line:find("^[ ]+")
+            if not numSpaces then
+                numSpaces = 0
+            end
+            
+            -- Set the current line to the substring from the cursor backwards.
+            lines[yPos]     = lineBeforeCursor
+            -- Insert the line from the cursor onward into the line below all the while shifting the entire
+            -- file down by one line.
+            table.insert(lines, yPos + 1, string.rep(' ', numSpaces) .. lineFromCursor)
+            
+            -- If the number of lines in the file increases by an exponent of 10, then move the offset of the x pos for the cursor up by 1.
+            if #lines == math.pow(10, xPosOffset - 2) then
+                xPosOffset = xPosOffset + 1
+            end
+            
+            -- Update the cursor by moving it down once.
+            pos.x = xPosOffset + numSpaces
+            pos.y = pos.y + 1
+            
+            -- A change has been made to the state of the lines in the file, so set the proper flag to alert the user
+            -- that it needs to be saved to keep the changes made.
+            hasBeenSavedSinceLastChar = false
+            
+            -- For some reason, the screen won't scroll after you press the enter key. Weird.
+            updateCursorPos()
+            drawLines()
+        -- If the key pressed was a right arrow, then move the cursor one to the right if it can.
+        elseif p1 == keys["right"] then
+            -- Make sure the cursor can move one to the right before actually moving the cursor.
+            if xPos < line:len() + 1 then
+                pos.x = pos.x + 1
+                drawCurrentLine()
+            -- If the current line isn't the last line the file and we're at the end of the line, then move the cursor
+            -- to the next line.
+            elseif yPos < #lines then
+                pos.x = xPosOffset
+                pos.y = pos.y + 1
+                drawLines()
+            end
+        -- If the key pressed wa a left arrow, then move the cursor one to the left if it can.
+        elseif p1 == keys["left"] then
+            -- Make sure the cursor can move one to the left before actually moving it.
+            if xPos > 1 then
+                pos.x = pos.x - 1
+                drawCurrentLine()
+            -- If the current line isn't the first line in the file and we're at the beginning of the line, then move
+            -- the cursor to the previous line.
+            elseif yPos > 1 then
+                pos.x = math.max(lines[yPos - 1]:len(), 1) + xPosOffset
+                pos.y = pos.y - 1
+                drawLines()
+            end
+        -- If the key pressed was the down key, then move the cursor one down if it can.
+        elseif p1 == keys["down"] and yPos < #lines then
+            pos.x = math.min(xPos + xPosOffset - 1, lines[yPos + 1]:len() + xPosOffset)
+            pos.y = pos.y + 1
+            drawLines()
+        -- If the key pressed was the up key, then move the cursor one up if it can.
+        elseif p1 == keys["up"] and yPos > 1 then
+            pos.x = math.min(xPos + xPosOffset - 1, lines[yPos - 1]:len() + xPosOffset)
+            pos.y = pos.y - 1
+            drawLines()
+        -- If the key pressed was the end key, then move the cursor to the end of the current line.
+        elseif p1 == keys["end"] then
+            pos.x    = line:len() + xPosOffset
+            drawCurrentLine()
+        -- If the key pressed was the home key, then move they cursor to the beginning of the current line.
+        elseif p1 == keys["home"] then
+            pos.x    = xPosOffset
+            drawCurrentLine()
+        -- If the key pressed was the delete key, then delete the character in front of the cursor if possible.
+        elseif p1 == keys["delete"] then
+            -- If the cursor isn't at the end of the line, then remove the character in front of the cursor.
+            if xPos < line:len() + 1 then
+                lines[yPos] = line:sub(1, xPos - 1) .. line:sub(xPos + 1)
+                drawCurrentLine()
+            -- If the cursor is at the end of the current line, then add the next line to the current one.
+            elseif yPos < #lines then
+                -- If the number of lines in the file increases by an exponent of 10, then move the offset of the x pos for the cursor up by 1.
+                if #lines == math.pow(10, xPosOffset - 3) then
+                    xPosOffset = xPosOffset - 1
+                    pos.x      = pos.x - 1
+                end
+                
+                lines[yPos] = line .. lines[yPos + 1]
+                table.remove(lines, yPos + 1)
+                drawLines()
+            end
+            
+            -- A change has been made to the state of the lines in the file, so set the proper flag to alert the user
+            -- that it needs to be saved to keep the changes made.
+            hasBeenSavedSinceLastChar = false
+        -- If the key pressed was the tab key, then insert the proper number of spaces into the current line.
+        elseif p1 == keys["tab"] then
+            lines[yPos] = line:sub(1, xPos - 1) .. string.rep(' ', TAB_SIZE) .. line:sub(xPos)
+            -- Update and reset the curs; redraw the current line.
+            hasBeenSavedSinceLastChar = false
+            pos.x = pos.x + TAB_SIZE
+            resetCursor()
+            drawCurrentLine()
+        -- If the user pressed either of the control keys, then open the file menu.
+        elseif p1 == 29 or p1 == 157 then
+            drawMainMenu()
+            resetCursor()
+            drawLines()
+        end
+        
+        -- Since the event thrown was not the cursor blink timer, make sure that the user can see the timer by
+        -- setting the blink flag to true and resetting the cursor blink timer.
+        resetCursor()
+    -- If the event thrown was a timer event and the timer was the cursor blink timer, set the flag for the cursor
+    -- to blink to true and reset the timer.
+    elseif event == "timer" and p1 == cursorBlinkTimer then
+        shouldCursorBlink = not shouldCursorBlink
+        cursorBlinkTimer = os.startTimer(CURSOR_BLINK_TIME)
+        drawCurrentLine()
+    -- If the event was a click on the menu option at the top of the screen, then open the menu.
+    elseif event == "mouse_click" and wasClickOnRange(p2, p3, WIDTH - ("[ File ]"):len(), 2, ("[ File ]"):len()) then
+        drawMainMenu()
+        resetCursor()
+        drawLines()
+    -- Handle mouse clicks.
+    elseif event == "mouse_click" then
+        -- If the event was a click on the 'X' at the top of the screen, then close the program.
+        if p2 == WIDTH and p3 == 1 then
+            running = false
+        -- Handle a click if it was on some line in the code so we may move the cursor to the place of the click.
+        elseif p2 >= xPosOffset and p3 >= yPosOffset then
+            pos.y = math.min(p3 + scroll.y, #lines + scroll.y + yPosOffset - 1)
+            pos.x = math.min(p2 + scroll.x, lines[pos.y - (yPosOffset - 1)]:len() + xPosOffset)
+            
+            drawLines()
+        end
+    -- Handle mouse scrolling.
+    elseif event == "mouse_scroll" then
+        -- If the direction is down, then scroll the screen down if it can be scrolled down.
+        if p1 == 1 and pos.y < #lines then
+            pos.y    = pos.y + 1
+            --scroll.y = scroll.y + 1
+            drawLines()
+        -- If the direction is up, then scroll the screen up if it can be scrolled up.
+        elseif p1 == -1 and pos.y > yPosOffset then
+            pos.y = pos.y - 1
+            drawLines()
+        end
+    end
+end
+-- Input handling functions --
+
+
+
+-- Initialization --
+-- Set the colors for the editor.
+term.setBackgroundColor(BACKGROUND_COLOR)
+term.setTextColor(TEXT_COLOR)
+
+-- Clear the screen before writing anything.
+term.clear()
+-- Load the file passed as an argument into the lines table.
+lines = loadLinesFromFile(path)
+drawLines()
+-- Initialization --
+
+
+-- Main entry point.
+while running do
+    updateCursorPos()
+    handleInput()
+end
+
+-- Cleanup.
+term.setBackgroundColor(colors.black)
+term.setTextColor(colors.white)
+
+term.clear()
+term.setCursorPos(1, 1)
