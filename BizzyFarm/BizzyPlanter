@@ -1,0 +1,122 @@
+function Forward()
+  turtle.forward()
+end
+
+function Up()
+  turtle.up()
+end
+
+function TurnRight()
+  turtle.turnRight()
+end
+
+function TurnLeft()
+  turtle.turnLeft()
+end
+
+function Plant()
+  turtle.forward()
+  turtle.placeDown()
+end
+
+function RowPlantRight()
+  turtle.turnRight()
+  turtle.forward()
+  turtle.turnRight()
+  turtle.placeDown()
+end
+
+function RowPlantLeft()
+  turtle.turnLeft()
+  turtle.forward()
+  turtle.turnLeft()
+  turtle.placeDown()
+end
+
+function RowRight()
+  turtle.turnRight()
+  turtle.forward()
+  turtle.turnRight()
+end
+
+function RowLeft()
+  turtle.turnLeft()
+  turtle.forward()
+  turtle.turnLeft()
+end
+
+term.clear()
+rednet.open("left")
+
+function GetIDs()
+print ("Waiting for Control Panel call")
+
+getcpid = 0
+while getcpid == 0 do
+  local senderId, message, protocol = rednet.receive()
+  if message == "BizzyCPIDP" then
+    CPID = senderId
+    HarvesterID = protocol
+    getcpid = 1
+  end
+end
+
+print("\nSending ID to Control Panel")
+
+sleep(1)
+rednet.send(CPID,"BizzyPlant")
+Settings = {cpid = CPID, harvesterid = HarvesterID}
+local file = fs.open("BizzyFarm/Settings", "w")
+file.write(textutils.serialize(Settings))
+file.close()
+sleep(1)
+end
+
+
+if not fs.exists("BizzyFarm/Settings") then
+  GetIDs()
+else
+  local file = fs.open("BizzyFarm/Settings","r")
+  local Settings = file.readAll()
+  file.close()
+  Settings = textutils.unserialize(Settings)
+  HarvesterID = Settings.harvesterid
+  CPID = Settings.cpid
+end
+
+term.clear()
+print("Waiting for actions from Harvester")
+
+while true do
+  local senderId, message, protocol = rednet.receive()
+  if senderId == HarvesterID then
+    if message == "Planter Forward" then
+      Forward()
+    end
+    if message == "Planter Up" then
+      Up()
+    end
+    if message == "Planter Turn Right" then
+      TurnRight()
+    end
+    if message == "Planter Turn Left" then
+      TurnLeft()
+    end
+    if message == "Planter Plant" then
+      Plant()
+    end
+    if message == "Planter New Row Plant Right" then
+      RowPlantRight()
+    end
+    if message == "Planter New Row Plant Left" then
+      RowPlantLeft()
+    end
+    if message == "Planter New Row No Plant Right" then
+      RowRight()
+    end
+    if message == "Planter New Row No Plant Left" then
+      RowLeft()
+    end
+    rednet.send(HarvesterID,"Done")
+  end
+end
