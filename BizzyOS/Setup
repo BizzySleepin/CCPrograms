@@ -11,7 +11,8 @@ iconFontColor = 32768
 desktopBackColor = 1
 contextX = 0
 contextY = 0
-
+BizzyInstall = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
+Programs = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
 
 
 --Functions
@@ -36,10 +37,8 @@ function drawDesktop()
 end
 
 function drawIcons()
-  icon = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
-  paintutils.drawImage(icon, 12, 7)
-  icon2 = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
-  paintutils.drawImage(icon2, 30, 7)
+  paintutils.drawImage(BizzyInstall, 12, 7)
+  paintutils.drawImage(Programs, 30, 7)
   term.setBackgroundColor(desktopBackColor)
   term.setTextColor(iconFontColor)
   term.setCursorPos(16,15)
