@@ -1,0 +1,136 @@
+--[[Terminal Desktop]]
+
+if not fs.exists("Bizzy") then
+  fs.makeDir("Bizzy")
+end
+if not fs.exists("Bizzy/Installer") then
+  shell.run("pastebin get Wmi0spqL Bizzy/Installer")
+end
+if fs.exists("installer") then
+  shell.run("delete installer")
+end
+if fs.exists("startup") then
+  shell.run("delete startup")
+end
+if not fs.exists("Bizzy/FileManager") then
+  shell.run("pastebin get mG3tuSMJ Bizzy/FileManager")
+end
+
+
+--Variables
+
+slc = 0
+tBarC = 8
+tBartC = 1
+iconFontColor = 32768
+desktopBackColor = 1
+contextX = 0
+contextY = 0
+
+
+
+--Functions
+
+function titleBar()
+  term.setCursorPos(1,1)
+  term.setBackgroundColor(tBarC)
+  term.setTextColor(tBartC)
+  term.clearLine()
+  term.setCursorPos(1, 1)
+  print("[Options]")
+  term.setCursorPos(23,1)
+  term.setTextColor(colors.black)
+  print("BizzyOS")
+end
+
+function drawDesktop()
+  term.setBackgroundColor(desktopBackColor)
+  term.clear()
+  titleBar()
+  drawIcons()
+end
+
+function drawIcons()
+  icon = paintutils.loadImage("monitor")
+  paintutils.drawImage(icon, 12, 7)
+  icon2 = paintutils.loadImage("remmonitor")
+  paintutils.drawImage(icon2, 30, 7)
+  term.setBackgroundColor(desktopBackColor)
+  term.setTextColor(iconFontColor)
+  term.setCursorPos(16,15)
+  print("Install")
+  term.setCursorPos(14,16)
+  print("Control Panel")
+  term.setCursorPos(32,15)
+  print("Install")
+  term.setCursorPos(32,16)
+  print("Other Programs")
+end
+
+function drawMenu1()
+  term.setTextColor(256)
+  term.setBackgroundColor(128)
+  term.setCursorPos(1,2)
+  print("               ")
+  term.setCursorPos(1,3)
+  print("Edit Installer ")
+  term.setCursorPos(1,4)
+  print("File Manager   ")
+  term.setCursorPos(1,5)
+  print("Restart        ")
+  term.setCursorPos(1,6)
+  print("Shutdown       ")
+  term.setCursorPos(1,7)
+  print("               ")
+end
+
+function startScreen()
+term.setBackgroundColor(desktopBackColor)
+term.clear()
+drawDesktop()
+while main == true do
+local event, button, X, Y = os.pullEventRaw()
+  if event == "mouse_click" then
+    if slc == 0 then
+      if X >= 1 and X <= 8 and Y == 1 and button == 1 then
+        drawMenu1()
+        slc = 1
+      elseif X >= 12 and X <= 22 and Y >= 7 and Y <= 13 and button == 1 then
+        main = false
+        monitorAdd()
+      elseif X >= 30 and X <= 40 and Y >= 7 and Y <= 13 and button == 1 then
+        main = false
+        monitorRemove()
+      else
+        drawDesktop()
+      end
+    elseif slc == 1 then
+      if X >= 1 and X <= 15 and Y == 3 and button == 1 then
+          slc = 0 
+          shell.run("edit Bizzy/Installer")
+      elseif X >= 1 and X <= 15 and Y == 4 and button == 1 then
+          slc = 0
+          shell.run("Bizzy/FileManager")
+      elseif X >= 1 and X <= 15 and Y == 5 and button == 1 then
+          slc = 0
+          shell.run("Bizzy/Installer")
+      elseif X >= 1 and X <= 15 and Y == 6 and button == 1 then
+          slc = 0
+          os.shutdown()
+      else
+        slc = 0
+        drawDesktop()
+      end
+    end
+  end
+end
+end
+
+function monitorAdd()
+  term.setBackgroundColor(desktopBackColor)
+  term.clear()
+  titleBar()
+end
+
+main = true
+startScreen()
