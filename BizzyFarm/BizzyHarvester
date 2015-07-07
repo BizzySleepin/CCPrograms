@@ -1,0 +1,401 @@
+--Functions
+ 
+function GetPosition()
+end
+ 
+function GetSettings() -- Communicates with the Control Panel to transfer Turtle IDs
+  print ("Waiting for Control Panel call")
+  getid = false
+  while getid == false do
+    local senderId, message = rednet.receive()
+    if message == "BizzyCPIDH" then
+      CPID = senderId
+      getid = true
+    end
+  end
+  print("\nSending ID to Control Panel")
+  sleep(1)
+  rednet.send(CPID,"BizzyHarvest")
+  sleep(1)
+  NewSettings()
+end
+ 
+function NewSettings() -- Receives settings table from Control Panel
+  print("\nWaiting for settings from Control Panel")
+  getsettings = true
+  while getsettings == true do
+    local senderId, message = rednet.receive()
+    if senderId == CPID then
+      if message == "Ready!" then
+        getsettings = false
+      end
+    end
+  end
+  while getsettings == false do
+    local senderId, message = rednet.receive()
+    if senderId == CPID then
+      Settings = textutils.unserialize(message)
+      rednet.send(CPID,"Recieved Settings")
+      SaveSettings()
+      getsettings = true
+    end
+  end
+  TotalLength = Settings.length
+  TotalRows = Settings.rows
+  DockDistance = Settings.sdistance
+  PlanterID = Settings.planterid
+  CPID = Settings.cpid
+  print("Settings Received!")
+end
+ 
+function SaveSettings()
+  local file = fs.open("BizzyFarm/Settings", "w")
+  file.write(textutils.serialize(Settings))
+  file.close()
+end
+ 
+function LoadSettings()
+  local file = fs.open("BizzyFarm/Settings","r")
+  local Settings = file.readAll()
+  file.close()
+  Settings = textutils.unserialize(Settings)
+  Crop = Settings.croptype
+  TotalLength = Settings.length
+  TotalRows = Settings.rows
+  DockDistance = Settings.sdistance
+  PlanterID = Settings.planterid
+  CPID = Settings.cpid
+  GetCropType()
+end
+ 
+function SaveStartPos()
+  local file = fs.open("BizzyFarm/StartPos", "w")
+  file.write(textutils.serialize(startpos))
+  file.close()
+end
+ 
+function LoadStartPos()
+  local file = fs.open("BizzyFarm/StartPos","r")
+  local startposdata = file.readAll()
+  file.close()
+  return textutils.unserialize(startposdata)
+end
+ 
+function GetCropType()
+  if Crop == "Wheat" then
+    CropType = "minecraft:wheat"
+    MetaData = 7
+  end
+end
+ 
+function CheckIfHome()
+end
+ 
+function Program() -- Main part of Harvest
+  Start()  
+  rowcounter = 0
+  turtle.forward()
+  PlanterForward()
+  repeat
+    if rowcounter < TotalRows then
+      lengthcounter = 0
+      repeat
+        Harvest()
+        if lengthcounter == TotalLength then
+          rowcounter = rowcounter + 1
+        end
+        if (rowcounter~=TotalRows) and (lengthcounter==TotalLength) then
+          newrow = true
+          NextRow()
+        elseif (rowcounter~=TotalRows) and (lengthcounter~=TotalLength) then
+          turtle.forward()
+          if newrow == true then
+            PlanterNextRow()
+          elseif plant == true then
+            Plant()
+          elseif plant == false then
+            PlanterForward()
+          end
+        end
+      until lengthcounter == TotalLength
+    end
+  until rowcounter == TotalRows
+  HeadHome()
+  print("Harvest Done!")
+  rednet.send(CPID, "Harvester Done!")
+end
+ 
+function Start() -- Moves out of dock and into starting position on top of first crop
+  turtle.forward()
+  turtle.up()
+  startcounter = 0
+  repeat
+    turtle.forward()
+    PlanterForward()
+    startcounter = startcounter + 1
+  until startcounter == DockDistance - 1
+end
+ 
+function Harvest() -- Inspects Block and harvests it or not
+  local block,type = turtle.inspectDown()
+  if type.name == CropType and type.metadata == MetaData then
+    turtle.digDown()
+    plant = true
+    lengthcounter = lengthcounter + 1
+  else
+    plant = false
+    lengthcounter = lengthcounter + 1
+  end
+end
+ 
+function NextRow() -- Determines which way to turn
+  if rowcounter%2 ~= 0 then -- Is odd
+    lastrowturn = "right"
+    turtle.turnRight()
+    turtle.forward()
+    if plant == true then
+      Plant()
+    else
+      PlanterForward()
+    end
+    turtle.turnRight()
+  elseif rowcounter%2 == 0 then -- Is even
+    lastrowturn = "left"
+    turtle.turnLeft()
+    turtle.forward()
+    if plant == true then
+      Plant()
+    else
+      PlanterForward()
+    end
+    turtle.turnLeft()
+  end
+end
+ 
+function HeadHome() -- Determines which end it is on and returns accordingly
+  if TotalRows%2 ~= 0 then
+    turtle.turnRight()
+    turtle.turnRight()
+    turtle.up()
+    if plant == true then
+      Plant()
+    else
+      PlanterForward()
+    end
+    PlanterTurnRight()
+    PlanterTurnRight()
+    turtle.forward()
+    turtle.down()
+    homelengthtravel = 0
+    repeat
+      turtle.forward()
+      PlanterForward()
+      homelengthtravel = homelengthtravel + 1
+    until homelengthtravel == TotalLength - 1
+    homerowtravel = 1
+    if homerowtravel == TotalRows then
+      Dock1Row()
+    else
+      turtle.turnRight()
+      turtle.forward()
+      PlanterForward()
+      PlanterTurnRight()
+      homerowtravel = homerowtravel + 1
+      repeat
+        turtle.forward()
+        PlanterForward()
+        homerowtravel = homerowtravel + 1
+      until homerowtravel == TotalRows
+      turtle.turnLeft()
+      turtle.forward()
+      PlanterForward()
+      PlanterTurnLeft()
+      Dock()
+    end
+  else
+    turtle.forward()
+    if plant == true then
+      Plant()
+    else
+      PlanterForward()
+    end
+    turtle.turnRight()
+    turtle.forward()
+    PlanterForward()
+    PlanterTurnRight()
+    if TotalRows == 2 then
+      Dock2Rows()
+    else
+      homerowtravel = 1
+      repeat
+        turtle.forward()
+        PlanterForward()
+        homerowtravel = homerowtravel + 1
+      until homerowtravel == TotalRows - 1
+      turtle.turnLeft()
+      turtle.forward()
+      PlanterForward()
+      PlanterTurnLeft()
+      Dock()
+    end
+  end
+end
+ 
+function Dock1Row() -- Moves back into Dock position after return home from single row
+  dockcounter = 1
+  repeat
+    turtle.forward()
+    PlanterForward()
+    dockcounter = dockcounter + 1
+  until dockcounter == DockDistance + 1
+  turtle.down()
+  PlanterForward()
+  turtle.turnRight()
+  PlanterTurnRight()
+  turtle.turnRight()
+  PlanterTurnRight()
+end
+ 
+function Dock2Rows() -- Moves back into Dock position after return home from 2 rows
+  turtle.turnLeft()
+  turtle.forward()
+  PlanterForward()
+  PlanterTurnLeft()
+  dockcounter = 1
+  repeat
+    turtle.forward()
+    PlanterForward()
+    dockcounter = dockcounter + 1
+  until dockcounter == DockDistance
+  turtle.down()
+  PlanterForward()
+  turtle.turnRight()
+  PlanterTurnRight()
+  turtle.turnRight()
+  PlanterTurnRight()
+end
+ 
+function Dock() -- Moves back into Dock position after return home
+  dockcounter = 1
+  repeat
+    turtle.forward()
+    PlanterForward()
+    dockcounter = dockcounter + 1
+  until dockcounter == DockDistance
+  turtle.down()
+  PlanterForward()
+  turtle.turnRight()
+  PlanterTurnRight()
+  turtle.turnRight()
+  PlanterTurnRight()
+end
+ 
+function PlanterNextRow() -- Determines which way the planter has to turn
+  if plant == true then
+    if lastrowturn == "right" then
+      RowPlantRight()
+    elseif lastrowturn == "left" then
+      RowPlantLeft()
+    end
+  elseif plant == false then
+    if lastrowturn == "right" then
+      RowRight()
+    elseif lastrowturn == "left" then
+      RowLeft()
+    end
+  end
+  newrow = false
+end
+ 
+function PlanterForward()
+  rednet.send(PlanterID,"Planter Forward")
+  CheckDone()
+end
+ 
+function PlanterUp()
+  rednet.send(PlanterID,"Planter Up")
+  CheckDone()
+end
+ 
+function PlanterTurnRight()
+  rednet.send(PlanterID,"Planter Turn Right")
+  CheckDone()
+end
+ 
+function PlanterTurnLeft()
+  rednet.send(PlanterID,"Planter Turn Left")
+  CheckDone()
+end
+ 
+function Plant()
+  rednet.send(PlanterID,"Planter Plant")
+  CheckDone()
+end
+ 
+function RowPlantRight()
+  rednet.send(PlanterID,"Planter New Row Plant Right")
+  CheckDone()
+end
+ 
+function RowPlantLeft()
+  rednet.send(PlanterID,"Planter New Row Plant Left")
+  CheckDone()
+end
+ 
+function RowRight()
+  rednet.send(PlanterID,"Planter New Row No Plant Right")
+  CheckDone()
+end
+ 
+function RowLeft()
+  rednet.send(PlanterID,"Planter New Row No Plant Left")
+  CheckDone()
+end
+ 
+function CheckDone() -- Waits until the planter is done
+  repeat
+    local senderId, message, protocol = rednet.receive()
+    if senderId == PlanterID then
+      if message == "Done" then
+        PlanterDone = true
+      end
+    end
+  until PlanterDone == true
+  PlanterDone = false
+end
+ 
+ 
+term.clear()
+rednet.open("left")
+startpos = {}
+GetPosition()
+ 
+if fs.exists("BizzyFarm/StartPos") then
+  LoadStartPos()
+  LoadSettings()
+  print("Settings Loaded")
+  sleep(1)
+  term.clear()
+  CheckIfHome()
+else
+  SaveStartPos()
+  startpos = currentpos
+  SaveStartPos()
+  GetSettings()
+end
+ 
+startprogram = true
+while startprogram == true do
+  local senderId, message = rednet.receive()
+  if senderId == CPID then
+    if message == "Start!" then
+      print("Starting Program!")
+      sleep(1)
+      Program()
+    end
+    if message == "Settings!" then
+      term.clear()
+      NewSettings()
+    end
+  end
+end
