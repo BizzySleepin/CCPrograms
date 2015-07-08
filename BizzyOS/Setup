@@ -13,7 +13,8 @@ contextX = 0
 contextY = 0
 OSInstallIcon = paintutils.loadImage("BizzyOS/Images/Setup/BizzyInstall")
 ProgramsIcon = paintutils.loadImage("BizzyOS/Images/Setup/Programs")
-installerstartup = "https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/startup"
+OSstartup = "https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/startup"
+BizzyOSUrl = "https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/BizzyOS"
 
 
 --Functions
@@ -112,11 +113,8 @@ end
 end
 
 function InstallOS()
-    if fs.exists("startup") then shell.run("delete startup") end
-    local content = http.get(installerstartup)
-    local file = fs.open("startup", "w")
-    file.write(content.readAll())
-    file.close()
+    Bizzy.downloadFile(OSstartup, "startup", "r")
+    Bizzy.downloadFile(BizzyOSUrl, "BizzyOS/BizzyOS", "r")
     shell.run("startup")
 end
 

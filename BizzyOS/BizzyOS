@@ -1,4 +1,8 @@
 --Variable
+os.loadAPI("BizzyOS/API/kernal")
+os.loadAPI("BizzyOS/API/Bizzy")
+local tArgs = {...}
+local bg = ""
 local osVer = "Alpha 1.0"
 local w,h = term.getSize()
 local brunning = true

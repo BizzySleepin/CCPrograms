@@ -4,12 +4,12 @@ function downloadFile(url, path, m)
             shell.run("delete "..path)
             local content = http.get(url)
             local file = assert(io.open(path, "w"))
-            file:write(content.realAll())
+            file:write(content.readAll())
             file:close()
           else
             local content = http.get(url)
             local file = assert(io.open(path, "w"))
-            file:write(content.realAll())
+            file:write(content.readAll())
             file:close()
           end
         end
@@ -17,7 +17,7 @@ function downloadFile(url, path, m)
           if not fs.exists(path) then
             local content = http.get(url)
             local file = assert(io.open(path, "w"))
-            file:write(content.realAll())
+            file:write(content.readAll())
             file:close()
           end
         end 
@@ -26,6 +26,6 @@ end
 downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Setup", "BizzyOS/Setup", "r")
 downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Images/Setup/BizzyInstall", "BizzyOS/Images/Setup/BizzyInstall", "r")
 downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/Images/Setup/Programs", "BizzyOS/Images/Setup/Programs", "r")
-downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/API/bizzy", "BizzyOS/API/Bizzy", "r")
+downloadFile("https://raw.githubusercontent.com/BizzySleepin/CCPrograms/master/BizzyOS/API/Bizzy", "BizzyOS/API/Bizzy", "r")
 
 shell.run("BizzyOS/Setup")
