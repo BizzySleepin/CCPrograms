@@ -1,5 +1,7 @@
 -- API
 
+--File APIs
+
 function downloadFile(url, path, m)
         if m == "r" then 
           if fs.exists(path) then
@@ -24,4 +26,82 @@ function downloadFile(url, path, m)
             file:close()
           end
         end 
+end
+
+function getTable(path)
+        if fs.exists(path) then
+                local file = io.open(path, "r")
+                local lines = {}
+                local i = 1
+                local line = file:read("*l")
+                while line ~= nil do
+                        lines[i] = line
+                        line = file:read("*l")
+                        i = i + 1
+                end
+                file:close()
+                return lines
+        end
+        return {}
+end
+
+function getLine(path, n)
+        if fs.exists(path) then
+                local lines = getTable(path)
+                return lines[n]
+        end
+        return ""
+end
+
+
+--Screen APIs
+
+function clear(x, y, back, text)
+  term.setCursorPos(x, y)
+  term.setBackgroundColour(back)
+  term.setTextColour(text)
+  term.clear()
+end
+
+
+--Crash Catch API by NDFJay
+
+aCrash = function(func,align,bcol,tcol)
+local w,h = term.getSize()
+local ok, err = pcall(func)
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+local tmpErr = {
+"Oh No! We've Crashed!";
+" ";
+"Error Code:";
+err;
+" ";
+" ";
+"Please report this code to the dev if this is";
+"no fault of your own";
+" ";
+" ";
+"Please do refrain from modifying the base code!"
+}
+  if not ok then
+    if align == "left" then
+      for i,v in pairs(tmpErr) do
+        term.setCursorPos(1,i+1)
+        print(v)
+      end
+        elseif align == "center" then
+        for i,v in pairs(tmpErr) do
+          term.setCursorPos(math.floor(w-string.len(v))/2, i+1)
+          print(v)
+        end
+        term.setBackgroundColor(colors.black)
+        term.setCursorPos(1,math.floor(h))
+        term.clearLine()
+    end
+term.setBackgroundColor(colors.black)
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+  end
 end

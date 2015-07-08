@@ -1,29 +1,42 @@
---Variable
-os.loadAPI("BizzyOS/API/kernal")
+--APIs
 os.loadAPI("BizzyOS/API/Bizzy")
-local tArgs = {...}
-local bg = ""
-local osVer = "Alpha 1.0"
+
+--Variable
 local w,h = term.getSize()
+local tArgs = {...}
+local config = "/BizzyOS/Configs/Config"
+local images = "/BizzyOS/Images/"
+local osVer = string.sub(Bizzy.getLine(config, 1), string.find(Bizzy.getLine(config, 1), ":")+2)
+local starttext = tonumber(string.sub(Bizzy.getLine(config, 5), string.find(Bizzy.getLine(config, 5), ":")+2))
+local startback = tonumber(string.sub(Bizzy.getLine(config, 6), string.find(Bizzy.getLine(config, 6), ":")+2))
+local bg_col = tonumber(string.sub(Bizzy.getLine(config, 7), string.find(Bizzy.getLine(config, 7), ":")+2))
+local bg_text = tonumber(string.sub(Bizzy.getLine(config, 8), string.find(Bizzy.getLine(config, 8), ":")+2))
+local bg_image = string.sub(Bizzy.getLine(config, 9), string.find(Bizzy.getLine(config, 9), ":")+2)
 local brunning = true
 local slc = 0
-local _mtext = 1
-local _mback = 128
+
  
 --Tables
 local menu = {
-        [""] = {tcol = _mtext; bcol = _mback; x = 1; xx = 7; y = 1; cmd = function() slc = 1 end};
-        ["            "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 2; cmd = function() end};
-        [" Programs > "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 3; cmd = function() end};
-        [" Settings > "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 4; cmd = function() end};
-        [" Lua Prompt "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 5; cmd = function() end};
-        [" Quit       "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 6; cmd = function() term.setBackgroundColor(colors.black) term.setCursorPos(1,1) term.clear() brunning = false end};
-        [" Shutdown   "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 7; cmd = function() os.shutdown() end};
-        [" Logoff     "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 8; cmd = function() end};
-        [" Reboot     "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 9; cmd = function() os.reboot() end};
-        ["            "] = {tcol = _mtext; bcol = _mback; x = 1; xx = 12; y = 10; cmd = function() end};
+        [1] = {txt = ""; tcol = starttext; bcol = startback; x = 1; xx = 7; y = 1; cmd = function() slc = 1 end};
+        [2] = {txt = "            "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 2; cmd = function() end};
+        [3] = {txt = " Programs > "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 3; cmd = function() end};
+        [4] = {txt = " Settings > "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 4; cmd = function() end};
+        [5] = {txt = " Lua Prompt "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 5; cmd = function() Bizzy.clear(1, 1, colors.black, 1) shell.run("lua") end};
+        [6] = {txt = " Quit       "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 6; cmd = function() term.setBackgroundColor(colors.black) term.setCursorPos(1,1) term.clear() brunning = false end};
+        [7] = {txt = " Shutdown   "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 7; cmd = function() os.shutdown() end};
+        [8] = {txt = " Logoff     "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 8; cmd = function() end};
+        [9] = {txt = " Reboot     "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 9; cmd = function() os.reboot() end};
+        [10] = {txt = "            "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 10; cmd = function() error("Dicks to big") end};
 }
+
 --Functions
+
+local function clear(bcol)
+        term.setBackgroundColor(bcol)
+        term.clear()
+end
+
 local function tb_Draw()
         term.setCursorPos(1,1)
         term.setBackgroundColor(8)
@@ -33,18 +46,20 @@ local function tb_Draw()
         term.setCursorPos(math.floor(w)-#osVer, 1)
         print(osVer)
 end
- 
-local function clear(bcol)
-        term.setBackgroundColor(bcol)
-        term.clear()
+
+local function drawScreen(bcol, bimg)
+        clear(bcol)
+        if bimg == "None" then bimg = images.."clearbg" end
+        paintutils.drawImage(paintutils.loadImage(images.."clearbg"), 1, 1)
+        tb_Draw()
 end
- 
+  
 local function drawMenu()
         for k,v in pairs(menu) do
                 term.setBackgroundColor(v.bcol)
                 term.setTextColor(v.tcol)
                 term.setCursorPos(v.x, v.y)
-                print(k)
+                print(v.txt)
         end
 end
  
@@ -54,7 +69,7 @@ local function menuClick()
                         if e[2] == 1 then
                                 if e[3] >= v.x and e[3] <= v.xx and e[4] == v.y then
                                         v.cmd()
-                                        else slc = 0 clear(colors.black) tb_Draw()
+                                        else slc = 0 drawScreen(bg_col, bg_image)
                                 end
                         end
                 end
@@ -62,13 +77,12 @@ local function menuClick()
 end
  
 --Main code
-clear(colors.black)
-tb_Draw()
+local function mainCode()
+drawScreen(bg_col, bg_image)
 while brunning do
 e = {os.pullEvent()}
         if slc == 0 then
-                clear(colors.black)
-                tb_Draw()
+                drawScreen(bg_col, bg_image)
                 if      e[1] == "mouse_click" then
                         if e[2] == 1 then
                                 if e[3] >= 1 and e[3] <= 7 and e[4] == 1 then
@@ -83,3 +97,6 @@ e = {os.pullEvent()}
                 menuClick()
         end
 end
+end
+
+Bizzy.aCrash(mainCode, "center", colors.blue, 1)
