@@ -4,7 +4,7 @@ os.loadAPI("BizzyOS/API/Bizzy")
 --Variable
 local w,h = term.getSize()
 local tArgs = {...}
-local brunning = true
+local OSrunning = true
 local slc = 0
 local config = "/BizzyOS/Configs/Config"
 local images = "/BizzyOS/Images/"
@@ -27,7 +27,7 @@ local menu = {
         [3] = {txt = " Programs > "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 3; cmd = function() end};
         [4] = {txt = " Settings > "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 4; cmd = function() end};
         [5] = {txt = " Lua Prompt "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 5; cmd = function() Bizzy.clear(1, 1, colors.black, 1) shell.run("lua") end};
-        [6] = {txt = " Quit       "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 6; cmd = function() term.setBackgroundColor(colors.black) term.setCursorPos(1,1) term.clear() brunning = false end};
+        [6] = {txt = " Quit       "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 6; cmd = function() term.setBackgroundColor(colors.black) term.setCursorPos(1,1) term.clear() OSrunning = false end};
         [7] = {txt = " Shutdown   "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 7; cmd = function() os.shutdown() end};
         [8] = {txt = " Logoff     "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 8; cmd = function() end};
         [9] = {txt = " Reboot     "; tcol = starttext; bcol = startback; x = 1; xx = 12; y = 9; cmd = function() os.reboot() end};
@@ -83,7 +83,7 @@ end
 --Main code
 local function mainCode()
 drawScreen(bg_col, bg_image)
-while brunning do
+while OSrunning do
 e = {os.pullEvent()}
         if slc == 0 then
                 drawScreen(bg_col, bg_image)

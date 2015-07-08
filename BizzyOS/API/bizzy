@@ -56,11 +56,24 @@ end
 
 --Screen APIs
 
-function clear(x, y, back, text)
+function clear(x, y, bcol, tcol)
   term.setCursorPos(x, y)
-  term.setBackgroundColour(back)
-  term.setTextColour(text)
+  term.setBackgroundColour(bcol)
+  term.setTextColour(tcol)
   term.clear()
+end
+
+function printText(text, x, y)
+  term.setCursorPos(x,y)
+  term.print(text)
+end
+
+function printTextCol(text, x, y, bcol, tcol, n)
+  term.setCursorPos(x, y)
+  term.setBackgroundColour(bcol)
+  if n == "c" then term.clearLine() end
+  term.setTextColour(tcol)
+  print(text)
 end
 
 
