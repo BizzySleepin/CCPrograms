@@ -4,16 +4,20 @@ os.loadAPI("BizzyOS/API/Bizzy")
 --Variable
 local w,h = term.getSize()
 local tArgs = {...}
+local brunning = true
+local slc = 0
 local config = "/BizzyOS/Configs/Config"
 local images = "/BizzyOS/Images/"
 local osVer = string.sub(Bizzy.getLine(config, 1), string.find(Bizzy.getLine(config, 1), ":")+2)
+local tbar_col = tonumber(string.sub(Bizzy.getLine(config, 2), string.find(Bizzy.getLine(config, 2), ":")+2))
+local tbar_text = tonumber(string.sub(Bizzy.getLine(config, 3), string.find(Bizzy.getLine(config, 3), ":")+2))
+local allowstartmenu = string.sub(Bizzy.getLine(config, 4), string.find(Bizzy.getLine(config, 4), ":")+2)
 local starttext = tonumber(string.sub(Bizzy.getLine(config, 5), string.find(Bizzy.getLine(config, 5), ":")+2))
 local startback = tonumber(string.sub(Bizzy.getLine(config, 6), string.find(Bizzy.getLine(config, 6), ":")+2))
 local bg_col = tonumber(string.sub(Bizzy.getLine(config, 7), string.find(Bizzy.getLine(config, 7), ":")+2))
 local bg_text = tonumber(string.sub(Bizzy.getLine(config, 8), string.find(Bizzy.getLine(config, 8), ":")+2))
 local bg_image = string.sub(Bizzy.getLine(config, 9), string.find(Bizzy.getLine(config, 9), ":")+2)
-local brunning = true
-local slc = 0
+
 
  
 --Tables
