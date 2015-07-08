@@ -1,0 +1,554 @@
+--[[
+Author: NDFJay
+Title: CCatch
+Type: API
+Version: 1.0
+Created: 15/02/2013
+Last Update: 15/02/2013
+
+API inspired by "TheOriginalBIT" through his crash handling tutorial as shown below.
+http://www.computercraft.info/forums2/index.php?/topic/10450-handling-errors-creating-controlled-errors-creating-a-blue-screen-of-death-bsod/
+
+License:
+COPYRIGHT NOTICE
+Copyright © 2013 JayJay Swarts known online as NDFJay
+
+NDFJay, herein refered to as "The author" allows you to copy,
+distribute and adapt the work under the following conditions:
+
+Attribution — This license MUST be present at the top of the file.
+You must attribute the work in the manner specified by the author
+                                        (but not in any way that suggests that they endorse you or your use of the work).
+										If using parts of this code you must attribute the author above code snippet
+
+Creative Commons — You may use this work for commercial and non-commercial purposes alike.
+
+Share Alike — If you alter, transform, or build upon this work, you may distribute the resulting work
+                                        only under the same or similar license to this one.
+
+Any of the above conditions can be waived if you get permission from the copyright holder.
+
+This software is provided by the author "AS IS". As such the author does not take any responsibility for
+any damage caused to your systems, physical or virtual, especially from misuse or modification of code.
+]]--
+
+
+function cwrite(path, text)
+	local file = assert(io.open(path, "w"))
+	file:write(text)
+	file:close()
+end
+
+
+function cgetText(path)
+	if fs.exists(path) then
+		local file = assert(io.open(path, "r"))
+		return file:read("*a")
+	end
+	return ""
+end
+
+
+function append(path, text)
+	local _text = cgetText(path)
+	cwrite(path, text.."\n".._text)
+end
+
+
+A_crash = function(func,align,bcol,tcol)
+local w,h = term.getSize()
+local ok, err = pcall(func)
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+local tmpErr = {
+"Oh No! We've Crashed!";
+" ";
+"Error Code:";
+err;
+" ";
+" ";
+"Please report this code to the dev if this is";
+"no fault of your own";
+" ";
+" ";
+"Please do refrain from modifying the base code!"
+}
+	if not ok then
+		if align == "left" then
+			for i,v in pairs(tmpErr) do
+				term.setCursorPos(1,i+1)
+				print(v)
+			end
+				elseif align == "center" then
+				for i,v in pairs(tmpErr) do
+					term.setCursorPos(math.floor(w-string.len(v))/2, i+1)
+					print(v)
+				end
+				term.setBackgroundColor(colors.black)
+				term.setCursorPos(1,math.floor(h))
+				term.clearLine()
+		end
+term.setBackgroundColor(colors.black)
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+	end
+end
+
+
+A_custCrash = function(func,align,bcol,tcol,t)
+local w,h = term.getSize()
+local ok, err = pcall(func)
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+1)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+		write(err)
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+1)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+	end
+term.setBackgroundColor(colors.black)
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+end
+
+
+A_resolveCrash = function(func,resolvefunc)
+local ok, err = pcall(func)
+if not ok then
+resolvefunc()
+end
+end
+
+
+A_saveCrash = function(func,align,bcol,tcol,t,x,y,sDir,sPath)
+local w,h = term.getSize()
+local drop = 1
+local ok, err = pcall(func)
+local success = {
+'Error Log Saved to (/'..sDir.."/"..sPath..')';
+"Please show the log to the Dev"
+}
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+drop)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+drop)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+		if not fs.exists(sDir) then
+		fs.makeDir(sDir)
+		end
+		if not fs.exists(sDir.."/"..sPath) then
+		fwrite(sDir.."/"..sPath," ")
+		end
+		append(sDir.."/"..sPath, string.rep("=",40))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, tostring(err))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, string.rep("=",40))
+		if align == "left" then
+					term.setCursorPos(x,y)
+					print(success[1])
+					term.setCursorPos(x,y+2)
+					print(success[2])
+					elseif align == "center" then
+					term.setCursorPos(math.floor(w-#success[1])/2,y)
+					print(success[1])
+					term.setCursorPos(math.floor(w-#success[2])/2,y+2)
+					print(success[2])
+			end
+		term.setBackgroundColour(colors.black)
+		term.setTextColor(1)
+		term.setCursorPos(1,math.floor(h))
+		term.clearLine()
+		return true
+	end
+end
+
+
+A_c_Crash = function(func,argc,argv,align,bcol,tcol,t)
+local ok, err = pcall(func, argc, argv)
+local w,h = term.getSize()
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+1)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+		write(err)
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+1)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+	end
+term.setBackgroundColor(colors.black)
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+end
+
+
+A_save_c_Crash = function(func,align,bcol,tcol,t,x,y,sDir,sPath,argc,argv)
+local w,h = term.getSize()
+local drop = 1
+local ok, err = pcall(func, argc, argv)
+local success = {
+'Error Log Saved to (/'..sDir.."/"..sPath..')';
+"Please show the log to the Dev"
+}
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+drop)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+drop)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+		if not fs.exists(sDir) then
+		fs.makeDir(sDir)
+		end
+		if not fs.exists(sDir.."/"..sPath) then
+		fwrite(sDir.."/"..sPath," ")
+		end
+		append(sDir.."/"..sPath, string.rep("=",40))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, tostring(err))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, string.rep("=",40))
+			if align == "left" then
+					term.setCursorPos(x,y)
+					print(success[1])
+					term.setCursorPos(x,y+2)
+					print(success[2])
+					elseif align == "center" then
+					term.setCursorPos(math.floor(w-#success[1])/2,y)
+					print(success[1])
+					term.setCursorPos(math.floor(w-#success[2])/2,y+2)
+					print(success[2])
+			end
+		term.setBackgroundColour(colors.black)
+		term.setTextColor(1)
+		term.setCursorPos(1,math.floor(h))
+		term.clearLine()
+		return true
+	end
+end
+
+
+B_crash = function(func,align)
+local w,h = term.getSize()
+local ok, err = pcall(func)
+term.clear()
+local tmpErr = {
+"Oh No! We've Crashed!";
+" ";
+"Error Code:";
+err;
+" ";
+" ";
+"Please report this code to the dev if this is";
+"no fault of your own";
+" ";
+" ";
+"Please do refrain from modifying the base code!"
+}
+	if not ok then
+		if align == "left" then
+			for i,v in pairs(tmpErr) do
+				term.setCursorPos(1,i+1)
+				print(v)
+			end
+				elseif align == "center" then
+				for i,v in pairs(tmpErr) do
+					term.setCursorPos(math.floor(w-string.len(v))/2, i+1)
+					print(v)
+				end
+				term.setCursorPos(1,math.floor(h))
+				term.clearLine()
+		end
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+	end
+end
+
+
+B_custCrash = function(func,align,t)
+local w,h = term.getSize()
+local ok, err = pcall(func)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+1)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+		write(err)
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+1)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+	end
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+end
+
+
+B_resolveCrash = function(func,resolvefunc)
+local ok, err = pcall(func)
+if not ok then
+resolvefunc()
+end
+end
+
+
+B_saveCrash = function(func,align,t,x,y,sDir,sPath)
+local w,h = term.getSize()
+local drop = 1
+local ok, err = pcall(func)
+local success = {
+'Error Log Saved to (/'..sDir.."/"..sPath..')';
+"Please show the log to the Dev"
+}
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+drop)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+drop)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+		if not fs.exists(sDir) then
+		fs.makeDir(sDir)
+		end
+		if not fs.exists(sDir.."/"..sPath) then
+		fwrite(sDir.."/"..sPath," ")
+		end
+		append(sDir.."/"..sPath, string.rep("=",40))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, tostring(err))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, string.rep("=",40))
+			if align == "left" then
+					term.setCursorPos(x,y)
+					print(success[1])
+					term.setCursorPos(x,y+2)
+					print(success[2])
+					elseif align == "center" then
+					term.setCursorPos(math.floor(w-#success[1])/2,y)
+					print(success[1])
+					term.setCursorPos(math.floor(w-#success[2])/2,y+2)
+					print(success[2])
+			end
+		term.setCursorPos(1,math.floor(h))
+		term.clearLine()
+		return true
+	end
+end
+
+
+B_c_Crash = function(func,argc,argv,align,t)
+local ok, err = pcall(func, argc, argv)
+local w,h = term.getSize()
+term.setBackgroundColor(bcol)
+term.setTextColor(tcol)
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+1)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+		write(err)
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+1)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+	end
+term.setBackgroundColor(colors.black)
+term.setCursorPos(1,math.floor(h))
+term.clearLine()
+end
+
+
+B_save_c_Crash = function(func,align,t,x,y,sDir,sPath,argc,argv)
+local w,h = term.getSize()
+local drop = 1
+local ok, err = pcall(func, argc, argv)
+local success = {
+'Error Log Saved to (/'..sDir.."/"..sPath..')';
+"Please show the log to the Dev"
+}
+term.clear()
+if not ok then
+	if align == "left" then
+		for i,v in pairs(t) do
+			term.setCursorPos(1,i+drop)
+			print(v)
+			if string.find(t[i],":error:") then
+				term.setCursorPos(1, i+1)
+				print(v)
+				term.setCursorPos(string.find(t[i],":error:")-1, i+1)
+				write(err)
+			end
+		end
+			elseif align == "center" then
+			for i,v in pairs(t) do
+				term.setCursorPos(math.floor(w-#v)/2, i+drop)
+				print(v)
+				if string.find(t[i],":error:") then
+					term.setCursorPos(math.floor(w-string.find(t[i],":error:")-#err+1)/2, i+1)
+					print(v)
+					term.setCursorPos(math.floor(w+string.find(t[i],":error:")-#err-2)/2, i+1)
+					write(err)
+				end
+			end
+		end
+		if not fs.exists(sDir) then
+		fs.makeDir(sDir)
+		end
+		if not fs.exists(sDir.."/"..sPath) then
+		fwrite(sDir.."/"..sPath," ")
+		end
+		append(sDir.."/"..sPath, string.rep("=",40))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, tostring(err))
+		append(sDir.."/"..sPath, " ")
+		append(sDir.."/"..sPath, string.rep("=",40))
+		if align == "left" then
+					term.setCursorPos(x,y)
+					print(success[1])
+					term.setCursorPos(x,y+2)
+					print(success[2])
+					elseif align == "center" then
+					term.setCursorPos(math.floor(w-#success[1])/2,y)
+					print(success[1])
+					term.setCursorPos(math.floor(w-#success[2])/2,y+2)
+					print(success[2])
+			end
+		term.setCursorPos(1,math.floor(h))
+		term.clearLine()
+		return true
+	end
+end
