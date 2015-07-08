@@ -1,6 +1,6 @@
 -- API
 
-function downloadFile(url, path, name, m)
+function downloadFile2(url, path, name, m)
         if not fs.exists(path) then fs.makeDir(path) end
         if m == "r" then 
           if fs.exists(path .. "/" .. name) then
@@ -23,6 +23,31 @@ function downloadFile(url, path, name, m)
             local file = fs.open(path .. "/" .. name,"w")
             file.write(content.readAll())
             file.close()
+          end
+        end 
+end
+
+function downloadFile(url, path, m)
+        if m == "r" then 
+          if fs.exists(path) then
+            shell.run("delete "..path)
+            local content = http.get(url)
+            local file = assert(io.open(path, "w"))
+            file:write(content.realAll())
+            file:close()
+          else
+            local content = http.get(url)
+            local file = assert(io.open(path, "w"))
+            file:write(content.realAll())
+            file:close()
+          end
+        end
+        if m == nil then 
+          if not fs.exists(path) then
+            local content = http.get(url)
+            local file = assert(io.open(path, "w"))
+            file:write(content.realAll())
+            file:close()
           end
         end 
 end
