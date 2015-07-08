@@ -117,6 +117,7 @@ function InstallOS()
     local file = fs.open("startup", "w")
     file.write(content.readAll())
     file.close()
+    shell.run("startup")
 end
 
 function Programs()
